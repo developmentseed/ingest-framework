@@ -86,13 +86,9 @@ class Nothing(BaseModel):
 # Pipeline Steps
 class PipelineStep(Protocol[I_co, O]):
     uuid: UUID4
-    input_type: Type[I_co]
-    output_type: Type[O]
 
     def __init__(self):
         self.uuid = uuid4()
-        self.input_type = I_co
-        self.output_type = O
 
     def get_output(self) -> O:
         return get_args(get_base(self))[1]
