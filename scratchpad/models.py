@@ -1,3 +1,8 @@
+"""
+Just testing ideas here and tracking it for posterity. Nothing in here is used directly.
+"""
+
+
 from collections import deque
 from datetime import datetime, timedelta
 
