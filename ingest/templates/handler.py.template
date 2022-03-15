@@ -1,0 +1,4 @@
+from {handler_module} import {handler_class} as chandler
+
+def handler(event, context):
+    return chandler.handler(event, context).json()
