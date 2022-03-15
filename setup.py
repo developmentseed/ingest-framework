@@ -20,6 +20,7 @@ extra_reqs = {
         "black==22.1.0",
         "mypy==0.931",
         "mypy-extensions==0.4.3",
+        "pytest==7.1.0",
     ],
     "cdk": [
         "aws-cdk.core>=1.148.0",
@@ -58,7 +59,7 @@ setup(
     zip_safe=False,
     include_package_data=True,
     install_requires=install_requires,
-    # tests_require=extra_reqs["dev"],
+    tests_require=extra_reqs["dev"],
     extras_require=extra_reqs,
     # scripts=["scripts/api", "scripts/format", "scripts/lint", "scripts/typecheck"],
     version=version,

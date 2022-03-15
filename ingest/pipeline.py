@@ -44,9 +44,10 @@ class Pipeline:
         while i < len(self.steps) - 1:
             output_type = self.steps[i].get_output()
             input_type = self.steps[i + 1].get_input()
-            assert (
-                output_type == input_type
-            ), f"Output of step {i} ({output_type} is not equal to input of step {i+1} ({input_type})"
+            if output_type != input_type:
+                raise TypeError(
+                    f"Output of step {i} ({output_type} is not equal to input of step {i+1} ({input_type})"
+                )
             i += 1
 
     def create_stack(self, app: Any, code_dir: str, requirements_path: str):
