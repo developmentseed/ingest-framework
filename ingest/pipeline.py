@@ -61,5 +61,6 @@ class Pipeline:
             requirements_path=requirements_path,
         )
 
-    def handler_paths(self):
-        return [step.__module__ for step in self.steps]
+    @property
+    def resource_name(self):
+        return self.name.replace(" ", "_")

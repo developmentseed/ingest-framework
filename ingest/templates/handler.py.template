@@ -1,4 +1,13 @@
+import json
 from {handler_module} import {handler_class} as chandler
 
 def handler(event, context):
-    return chandler.handler(event, context).json()
+    if isinstance(event, str):
+        event_data = json.loads(event)
+    else:
+        event_data = event
+    if isinstance(context, str):
+        context_data = json.loads(context)
+    else:
+        context_data = context
+    return chandler.handler(event_data, context_data).dict(by_alias=True, exclude_unset=True)

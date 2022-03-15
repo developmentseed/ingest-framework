@@ -22,13 +22,11 @@ def get_base(cls):
 
 class Step(ABC, Generic[I_co, O]):
     uuid: UUID4
-    # name: str
     parameters: Dict
 
     def __init__(self, *args, **kwargs):
         if type(self) == Step:
             raise Exception("Step must be subclassed")
-        # self.name = name
         self.uuid = uuid4()
         self.parameters = kwargs
 
