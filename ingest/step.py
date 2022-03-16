@@ -1,7 +1,8 @@
-from abc import ABC
 from datetime import timedelta
-from typing import Dict, Generic, get_args, Protocol, Sequence, TypeVar
-from uuid import uuid4
+import json
+from typing import List, get_args, Protocol, Sequence, TypeVar
+
+# from uuid import uuid4
 
 from pydantic import UUID4, BaseModel
 
@@ -49,7 +50,6 @@ class Transformer(Step[I, O]):
         return result
 
 
-# TODO: Refactor to make all methods static and accept pipeline/step references for caching
 class Collector(Step[I, O]):
     batch_size: int = 100
     max_batching_window: int = 60
@@ -76,6 +76,11 @@ class Collector(Step[I, O]):
     def handler(cls, event, context) -> O:
         print(event)
         print(context)
-        input = event
-        result = cls.execute(input)
+        input_type = cls.get_input()
+        result = cls.execute(
+            input=[
+                input_type.parse_obj(json.loads(record.get("body")))
+                for record in event["Records"]
+            ]
+        )
         return result
