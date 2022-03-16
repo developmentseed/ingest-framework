@@ -36,6 +36,10 @@ class Step(Protocol[I_co, O]):
 
 
 class Transformer(Step[I, O]):
+    """
+    A basic step. Transforms one data type into another.
+    """
+
     @classmethod
     def execute(cls, input: I) -> O:
         raise NotImplementedError()
@@ -51,6 +55,15 @@ class Transformer(Step[I, O]):
 
 
 class Collector(Step[I, O]):
+    """
+    A step for processing batches of items.
+
+    When placed in a Pipeline, the previous step will
+    post its output to a queue. The Collector step will then
+    consume messages off that queue in batches, using
+    the configuration below.
+    """
+
     batch_size: int = 100
     max_batching_window: int = 60
     cache: BatchCache
