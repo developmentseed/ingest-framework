@@ -1,7 +1,7 @@
 from datetime import timedelta
 import json
 from pathlib import Path
-from typing import Optional, get_args, Protocol, Sequence, TypeVar
+from typing import Optional, Protocol, get_args, Sequence, TypeVar
 
 # from uuid import uuid4
 

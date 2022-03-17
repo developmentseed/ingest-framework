@@ -54,6 +54,9 @@ setup(
     author_email="edward@developmentseed.org",
     url="https://github.com/edkeeble/ingest",
     license="",
+    package_data={
+        "ingest": ["py.typed"],
+    },
     packages=find_packages(
         exclude=["alembic", "tests", "scripts", "examples", "deps", "cdk.out", "build"],
     ),
