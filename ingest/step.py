@@ -1,12 +1,13 @@
 from datetime import timedelta
 import json
-from typing import List, get_args, Protocol, Sequence, TypeVar
+from typing import get_args, Protocol, Sequence, TypeVar
 
 # from uuid import uuid4
 
 from pydantic import UUID4, BaseModel
 
 from ingest.cache import BatchCache
+from ingest.permissions import Permission
 
 I = TypeVar("I", bound=BaseModel)
 O = TypeVar("O", covariant=True, bound=BaseModel)
@@ -22,6 +23,8 @@ def get_base(cls):
 
 
 class Step(Protocol[I_co, O]):
+    permissions: Sequence[Permission] = []
+
     @classmethod
     def get_output(cls) -> O:
         return get_args(get_base(cls))[1]

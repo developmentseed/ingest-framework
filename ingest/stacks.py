@@ -2,9 +2,7 @@ import logging
 import os
 import subprocess
 import sys
-from tempfile import TemporaryDirectory
 from typing import List, Optional, Sequence, Type
-from uuid import uuid4
 from aws_cdk import (
     core,
     aws_lambda as lambda_,
@@ -15,6 +13,7 @@ from aws_cdk import (
     aws_stepfunctions as sf,
     aws_stepfunctions_tasks as tasks,
 )
+from ingest.permissions import S3Access
 
 from ingest.step import Collector
 from ingest.trigger import S3Trigger
@@ -23,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class PipelineStack(core.Stack):
+    from ingest.permissions import Permission
     from ingest.pipeline import Pipeline
     from ingest.step import Step, Collector
     from ingest.trigger import S3Trigger
@@ -238,7 +238,7 @@ class PipelineStack(core.Stack):
         lambdas = []
         for step in steps:
             d = os.path.relpath(code_dir)
-            reqs = requirements_path  # os.path.join(d, requirements_path)
+            reqs = requirements_path  # make requirements_path absolute and convert to relative here
 
             handler_file = self.get_handler_template_contents().format(
                 handler_module=step.__module__, handler_class=step.__name__
@@ -254,7 +254,6 @@ class PipelineStack(core.Stack):
                 code=lambda_.Code.from_asset(
                     d,
                     exclude=["__pycache__"],
-                    # exclude=["*", "**", f"!{d}", f"!{d}/*", f"!{d}/**/*"],
                     bundling=core.BundlingOptions(
                         image=lambda_.Runtime.PYTHON_3_9.bundling_image,
                         command=[
@@ -270,6 +269,9 @@ class PipelineStack(core.Stack):
                 layers=[layer],
             )
 
+            for permission in step.permissions:
+                self.grant_permission(permission, step_lambda)
+
             # TODO: Add error handling and retry config
 
             lambda_task = tasks.LambdaInvoke(
@@ -281,6 +283,12 @@ class PipelineStack(core.Stack):
 
             lambdas.append(lambda_task)
         return lambdas
+
+    def grant_permission(self, permission: Permission, func: lambda_.Function):
+        if isinstance(permission, S3Access):
+            bucket = s3.Bucket.from_bucket_name(func, "bucket", permission.bucket_name)
+            for action in permission.actions:
+                getattr(bucket, f"grant_{action}")(func)
 
     def create_state_machine(
         self, state_machine_name: str, lambdas: Sequence[tasks.LambdaInvoke]
@@ -322,6 +330,7 @@ class PipelineStack(core.Stack):
                 "-m",
                 "pip",
                 "install",
+                "--upgrade",
                 os.path.join(os.path.dirname(__file__), ".."),
                 "-t",
                 f"{dir_name}/python/lib/python3.9/site-packages/",
