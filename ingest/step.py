@@ -1,6 +1,7 @@
 from datetime import timedelta
 import json
-from typing import get_args, Protocol, Sequence, TypeVar
+from pathlib import Path
+from typing import Optional, get_args, Protocol, Sequence, TypeVar
 
 # from uuid import uuid4
 
@@ -24,6 +25,7 @@ def get_base(cls):
 
 class Step(Protocol[I_co, O]):
     permissions: Sequence[Permission] = []
+    requirements_path: Optional[Path] = None
 
     @classmethod
     def get_output(cls) -> O:

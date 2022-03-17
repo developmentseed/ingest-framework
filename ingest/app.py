@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import List
 from uuid import uuid4
 from pydantic import UUID4
@@ -9,14 +10,14 @@ class IngestApp:
     uuid: UUID4
     name: str
     pipelines: List[Pipeline]
-    code_dir: str
-    requirements_path: str
+    code_dir: Path
+    requirements_path: Path
 
     def __init__(
         self,
         name: str,
-        code_dir: str,
-        requirements_path: str,
+        code_dir: Path,
+        requirements_path: Path,
         pipelines: List[Pipeline] = [],
     ):
         self.id = uuid4()

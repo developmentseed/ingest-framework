@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any, Sequence, Type
 from uuid import uuid4
 from pydantic import UUID4
@@ -60,7 +61,7 @@ class Pipeline:
                 )
             i += 1
 
-    def create_stack(self, app: Any, code_dir: str, requirements_path: str):
+    def create_stack(self, app: Any, code_dir: Path, requirements_path: Path):
         from ingest.stacks import PipelineStack
 
         return PipelineStack(

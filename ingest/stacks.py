@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 import subprocess
 import sys
 from typing import List, Optional, Sequence, Type
@@ -31,8 +32,8 @@ class PipelineStack(core.Stack):
         self,
         scope: core.Construct,
         id: str,
-        code_dir: str,
-        requirements_path: str,
+        code_dir: Path,
+        requirements_path: Path,
         pipeline: Pipeline,
         steps: Sequence[Type[Step]],
         *args,
@@ -78,7 +79,6 @@ class PipelineStack(core.Stack):
             starting_idx = idx
             trigger_queue = target_queue
         else:
-            logger.debug("!!!!loop done!!!!", starting_idx)
             if starting_idx < len(
                 steps
             ):  # There are remaining steps after the final collector
@@ -97,8 +97,8 @@ class PipelineStack(core.Stack):
         self,
         workflow_num: int,
         pipeline: Pipeline,
-        code_dir: str,
-        requirements_path: str,
+        code_dir: Path,
+        requirements_path: Path,
         steps: Sequence[Type[Step]],
         layer: lambda_.LayerVersion,
         collector: Optional[Type[Collector]] = None,
@@ -231,14 +231,18 @@ class PipelineStack(core.Stack):
     def create_lambda_tasks(
         self,
         steps: Sequence[Type[Step]],
-        code_dir: str,
-        requirements_path: str,
+        code_dir: Path,
+        requirements_path: Path,
         layer: lambda_.LayerVersion,
     ) -> List[tasks.LambdaInvoke]:
         lambdas = []
         for step in steps:
-            d = os.path.relpath(code_dir)
-            reqs = requirements_path  # make requirements_path absolute and convert to relative here
+            d = code_dir.relative_to(Path(os.path.curdir).resolve())
+
+            if step.requirements_path:
+                reqs = step.requirements_path.relative_to(code_dir)
+            else:
+                reqs = requirements_path.relative_to(code_dir)
 
             handler_file = self.get_handler_template_contents().format(
                 handler_module=step.__module__, handler_class=step.__name__
@@ -252,7 +256,7 @@ class PipelineStack(core.Stack):
                 self,
                 f"{lambda_prefix}-{lambda_name}",
                 code=lambda_.Code.from_asset(
-                    d,
+                    str(d.absolute()),
                     exclude=["__pycache__"],
                     bundling=core.BundlingOptions(
                         image=lambda_.Runtime.PYTHON_3_9.bundling_image,
