@@ -9,12 +9,15 @@ from aws_cdk import (
     core,
     aws_lambda as lambda_,
     aws_lambda_event_sources as event_sources,
+    aws_s3 as s3,
+    aws_s3_notifications as s3n,
     aws_sqs as sqs,
     aws_stepfunctions as sf,
     aws_stepfunctions_tasks as tasks,
 )
 
 from ingest.step import Collector
+from ingest.trigger import S3Trigger
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +25,7 @@ logger = logging.getLogger(__name__)
 class PipelineStack(core.Stack):
     from ingest.pipeline import Pipeline
     from ingest.step import Step, Collector
+    from ingest.trigger import S3Trigger
 
     def __init__(
         self,
@@ -122,7 +126,12 @@ class PipelineStack(core.Stack):
 
         if workflow_num == 0:
             # set trigger to pipeline trigger
-            pass
+            if isinstance(pipeline.trigger, S3Trigger):
+                self.create_s3_trigger_lambda(
+                    pipeline_name=pipeline.name,
+                    state_machine=state_machine,
+                    trigger=pipeline.trigger,
+                )
         elif (
             issubclass(steps[0], Collector) and trigger_queue
         ):  # this should always be true, if workflow_num > 0
@@ -135,6 +144,33 @@ class PipelineStack(core.Stack):
             )
 
         return state_machine
+
+    def create_s3_trigger_lambda(
+        self, pipeline_name: str, state_machine: sf.StateMachine, trigger: S3Trigger
+    ) -> lambda_.Function:
+        l = lambda_.Function(
+            self,
+            f"s3_trigger_{pipeline_name}"[:79],
+            code=lambda_.Code.from_asset(
+                os.path.join(os.path.dirname(__file__), "handlers", "s3_trigger"),
+            ),
+            environment={"STATE_MACHINE_ARN": state_machine.state_machine_arn},
+            timeout=core.Duration.seconds(30),
+            runtime=lambda_.Runtime.PYTHON_3_9,
+            handler="handler.handler",
+        )
+        state_machine.grant_start_execution(l)
+        bucket = s3.Bucket.from_bucket_name(
+            self, f"trigger_bucket_{pipeline_name}"[:79], trigger.bucket_name
+        )
+        bucket.grant_read(l)
+        for event_type in trigger.events:
+            bucket.add_event_notification(
+                getattr(s3.EventType, event_type),
+                s3n.LambdaDestination(l),
+                s3.NotificationKeyFilter(**trigger.notification_key_filter_kwargs),
+            )
+        return l
 
     def create_sqs_trigger_lambda(
         self,
@@ -149,7 +185,10 @@ class PipelineStack(core.Stack):
             code=lambda_.Code.from_asset(
                 os.path.join(os.path.dirname(__file__), "handlers", "sqs_trigger"),
             ),
-            environment={"STATE_MACHINE_ARN": state_machine.state_machine_arn},
+            environment={
+                "STATE_MACHINE_ARN": state_machine.state_machine_arn,
+                "QUEUE_NAME": queue_name,
+            },
             timeout=core.Duration.seconds(30),
             runtime=lambda_.Runtime.PYTHON_3_9,
             handler="handler.handler",
@@ -199,7 +238,7 @@ class PipelineStack(core.Stack):
         lambdas = []
         for step in steps:
             d = os.path.relpath(code_dir)
-            reqs = os.path.join(d, requirements_path)
+            reqs = requirements_path  # os.path.join(d, requirements_path)
 
             handler_file = self.get_handler_template_contents().format(
                 handler_module=step.__module__, handler_class=step.__name__
@@ -207,19 +246,21 @@ class PipelineStack(core.Stack):
             lambda_name = step.__name__
             lambda_prefix = self.stack_name[: 79 - len(lambda_name)]
 
-            handler_name = uuid4().hex
+            handler_name = "handler"
 
             step_lambda = lambda_.Function(
                 self,
                 f"{lambda_prefix}-{lambda_name}",
                 code=lambda_.Code.from_asset(
-                    ".",
+                    d,
+                    exclude=["__pycache__"],
+                    # exclude=["*", "**", f"!{d}", f"!{d}/*", f"!{d}/**/*"],
                     bundling=core.BundlingOptions(
                         image=lambda_.Runtime.PYTHON_3_9.bundling_image,
                         command=[
                             "bash",
                             "-c",
-                            f'echo "{handler_file}" > /asset-output/{handler_name}.py && pip install -r {reqs} -t /asset-output && cp -au {d} /asset-output',
+                            f'echo "{handler_file}" > /asset-output/{handler_name}.py && pip install -r {reqs} -t /asset-output && cp -au . /asset-output/{d}',
                         ],
                     ),
                 ),
@@ -253,7 +294,9 @@ class PipelineStack(core.Stack):
             state_machine_name,
             state_machine_name=f"{state_machine_prefix}_{state_machine_name}".lower(),
             definition=definition.next(
-                sf.Succeed(self, f"Complete-{uuid4().hex}"[:79], comment="Complete")
+                sf.Succeed(
+                    self, f"Complete-{state_machine_name}"[:79], comment="Complete"
+                )
             ),
         )
 
@@ -267,25 +310,30 @@ class PipelineStack(core.Stack):
     def create_dependencies_layer(
         self,
     ) -> lambda_.LayerVersion:
-        with TemporaryDirectory() as tmp_dir:
-            subprocess.check_call(
-                [
-                    sys.executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    os.path.join(os.path.dirname(__file__), ".."),
-                    "-t",
-                    f"{tmp_dir}/python/lib/python3.9/site-packages/",
-                ]
-            )
-            layer = lambda_.LayerVersion(
-                self,
-                "IngestDependencies",
-                code=lambda_.Code.from_asset(tmp_dir),
-                compatible_runtimes=[lambda_.Runtime.PYTHON_3_9],
-                description="The ingest framework",
-            )
+        dir_name = os.path.join(".ingest-build", ".dependency_layer")
+        try:
+            os.makedirs(dir_name)
+        except FileExistsError:
+            pass
+        # with TemporaryDirectory() as tmp_dir:
+        subprocess.check_call(
+            [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                os.path.join(os.path.dirname(__file__), ".."),
+                "-t",
+                f"{dir_name}/python/lib/python3.9/site-packages/",
+            ]
+        )
+        layer = lambda_.LayerVersion(
+            self,
+            "IngestDependencies",
+            code=lambda_.Code.from_asset(dir_name),
+            compatible_runtimes=[lambda_.Runtime.PYTHON_3_9],
+            description="The ingest framework",
+        )
         return layer
 
     @staticmethod

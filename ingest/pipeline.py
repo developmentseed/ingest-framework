@@ -4,6 +4,7 @@ from pydantic import UUID4
 
 
 from ingest.step import Collector, Step
+from ingest.trigger import Trigger
 
 
 class Pipeline:
@@ -18,10 +19,13 @@ class Pipeline:
 
     uuid: str
     name: str
+    steps: Sequence[Type[Step]]
+    trigger: Trigger
 
-    def __init__(self, name: str, steps: Sequence[Type[Step]]):
+    def __init__(self, name: str, trigger: Trigger, steps: Sequence[Type[Step]]):
         self.uuid = "testuuid"  # uuid4()
         self.name = name
+        self.trigger = trigger
         self.steps = steps
         self.validate()
 
@@ -40,6 +44,12 @@ class Pipeline:
     def validate(self):
         """Ensure that each step passes the correct data type
         to the following step."""
+        if self.trigger.output_type != self.steps[0].get_input():
+            raise TypeError(
+                f"Output of trigger ({self.trigger.output_type} is not equal to input of first step ({self.steps[0].get_input()})"
+            )
+
+        # check output of each step against input of the following step
         i = 0
         while i < len(self.steps) - 1:
             output_type = self.steps[i].get_output()

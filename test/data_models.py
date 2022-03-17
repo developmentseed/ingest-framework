@@ -1,11 +1,7 @@
 from typing import Dict
 from pydantic import BaseModel
 from ingest.step import Transformer
-
-
-class S3Object(BaseModel):
-    bucket: str
-    key: str
+from ingest.data_types import S3Object
 
 
 class StacItem(BaseModel):

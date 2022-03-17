@@ -11,7 +11,7 @@ class FailedToWriteToSQS(Exception):
 logger = logging.getLogger(__name__)
 
 
-def handler(event, context):
+def handler(event, context) -> None:
     sqs = boto3.client("sqs")
     response = sqs.send_message(
         QueueUrl=os.environ["QUEUE_URL"], MessageBody=json.dumps(event)
