@@ -62,7 +62,7 @@ class Pipeline:
             i += 1
 
     def create_stack(self, app: Any, code_dir: Path, requirements_path: Path):
-        from ingest.stacks import PipelineStack
+        from ingest.stack.pipeline_stack import PipelineStack
 
         return PipelineStack(
             app,
