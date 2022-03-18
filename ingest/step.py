@@ -73,9 +73,11 @@ class Collector(Step[I, O]):
     max_batching_window: int = 60
     cache: BatchCache
 
+    @classmethod
     def collect_input(self, input: I) -> None:
         self.cache.queue_data(data=input)
 
+    @classmethod
     def ready(self) -> bool:
         return (
             self.cache.queue_size >= self.batch_size
@@ -83,6 +85,7 @@ class Collector(Step[I, O]):
             >= timedelta(seconds=self.max_batching_window)
         )
 
+    @classmethod
     def fetch_batch(self) -> Sequence[I]:
         return self.cache.fetch(self.batch_size)
 
