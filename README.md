@@ -32,6 +32,10 @@ Monitoring is a pain to add after the fact and it's especially a pain to add to 
 
 We now have a reference design for this sort of ingestion pipeline. But the only thing better than codifying best practices in a document is codifying them in, well, code. For example, we shouldn't have to consult the reference doc every time we want to implement a bulk processing step. We should be able to simply annotate a step in our pipeline as accumulating data from other pipeline runs and let the framework handle provisioning all the required resources to make that happen.
 
+### Portability between cloud providers
+
+This is a future goal, but worth keeping in mind. All infrastructure in this project is currently being spun up in AWS via CDK, but references to CDK have been mostly kept out of the core library. Eventually, we may want to add support for deploying to Azure or GCP via an appropriate IaC tool and we should be able to do that without _too_ much refactoring.
+
 ## Example
 
 [https://github.com/edkeeble/ingest-example](https://github.com/edkeeble/ingest-example)
