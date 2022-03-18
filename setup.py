@@ -22,6 +22,7 @@ extra_reqs = {
         "mypy-extensions==0.4.3",
         "pytest==7.1.0",
         "boto3==1.21.20",
+        "boto3-stubs[stepfunctions]",
     ],
     "cdk": [
         "aws-cdk.core>=1.148.0",
