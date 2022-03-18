@@ -42,7 +42,7 @@ A non-comprehensive list of things which are missing right now.
 
 - Defining networking requirements (we may be able to infer these from required access to DB in private subnet)
 - Support a requirements file per step rather than per app
-- Additional trigger types (SQS, HTTP request?)
+- Additional trigger types (SQS, HTTP request?). Define a plugin interface for triggers, so that other devs can provide their own.
 - Allow triggering another pipeline from within a step (support parallelization)
 - Monitoring:
   - tracing each pipeline run through each step in the pipeline
@@ -52,3 +52,4 @@ A non-comprehensive list of things which are missing right now.
   - This requires re-instantiating the classes with the same parameters within each lambda function
 - A non-toy working example
 - A multi-pipeline example
+- A better name for this project
