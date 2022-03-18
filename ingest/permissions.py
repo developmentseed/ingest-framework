@@ -8,7 +8,7 @@ class S3AccessActions(str, Enum):
     delete = "delete"
     put = "put"
     read = "read"
-    write = "read"
+    write = "write"
 
 
 class Permission(BaseModel):
