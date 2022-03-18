@@ -59,7 +59,7 @@ class PipelineStack(core.Stack):
                         10
                     ),  # TODO: make this configurable
                 )
-            workflow = PipelineWorkflow(
+            PipelineWorkflow(
                 self,
                 f"Workflow{i}",
                 workflow_num=i,
@@ -79,7 +79,7 @@ class PipelineStack(core.Stack):
                 steps
             ):  # There are remaining steps after the final collector
                 logger.debug(f"Creating workflow for steps {starting_idx} to end")
-                workflow = PipelineWorkflow(
+                PipelineWorkflow(
                     self,
                     f"Workflow{i+1}",
                     workflow_num=i + 1,
@@ -99,7 +99,7 @@ class PipelineStack(core.Stack):
             os.makedirs(dir_name)
         except FileExistsError:
             pass
-        # with TemporaryDirectory() as tmp_dir:
+
         subprocess.check_call(
             [
                 sys.executable,
