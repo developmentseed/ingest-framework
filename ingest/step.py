@@ -1,7 +1,7 @@
 from datetime import timedelta
 import json
 from pathlib import Path
-from typing import Optional, Protocol, get_args, Sequence, TypeVar
+from typing import Dict, Optional, Protocol, get_args, Sequence, TypeVar
 
 # from uuid import uuid4
 
@@ -9,6 +9,7 @@ from pydantic import UUID4, BaseModel
 
 from ingest.cache import BatchCache
 from ingest.permissions import Permission
+from ingest.secrets import SecretsMap
 
 I = TypeVar("I", bound=BaseModel)
 O = TypeVar("O", covariant=True, bound=BaseModel)
@@ -25,6 +26,7 @@ def get_base(cls):
 
 class Step(Protocol[I_co, O]):
     permissions: Sequence[Permission] = []
+    secrets: Optional[SecretsMap] = {}
     requirements_path: Optional[Path] = None
 
     @classmethod
@@ -46,16 +48,20 @@ class Transformer(Step[I, O]):
     """
 
     @classmethod
-    def execute(cls, input: I) -> O:
+    def execute(cls, input: I, **kwargs) -> O:
         raise NotImplementedError()
 
     @classmethod
-    def handler(cls, event, context) -> O:
+    def handler(cls, event, context, secrets: Optional[SecretsMap] = None) -> O:
         print(f"Event: {event}")
         print(f"Context: {context}")
         input_data = cls.get_input().parse_obj(event)
         print(f"Input: {input_data}")
-        result = cls.execute(input=input_data)
+
+        secret_dict = (
+            {k: secret.secret_value for k, secret in secrets.items()} if secrets else {}
+        )
+        result = cls.execute(input=input_data, **secret_dict)
         return result
 
 
@@ -90,18 +96,22 @@ class Collector(Step[I, O]):
         return self.cache.fetch(self.batch_size)
 
     @classmethod
-    def execute(cls, input: Sequence[I]) -> O:
+    def execute(cls, input: Sequence[I], **kwargs) -> O:
         raise NotImplementedError()
 
     @classmethod
-    def handler(cls, event, context) -> O:
+    def handler(cls, event, context, secrets: Optional[SecretsMap] = None) -> O:
         print(event)
         print(context)
         input_type = cls.get_input()
+        secret_dict = (
+            {k: secret.secret_value for k, secret in secrets.items()} if secrets else {}
+        )
         result = cls.execute(
             input=[
                 input_type.parse_obj(json.loads(record.get("body")))
                 for record in event["Records"]
-            ]
+            ],
+            **secret_dict,
         )
         return result

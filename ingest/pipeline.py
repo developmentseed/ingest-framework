@@ -39,7 +39,7 @@ class Pipeline:
                 else:
                     return input
             else:
-                input = step.execute(input)
+                input = step.execute(input=input)
         return input
 
     def validate(self):

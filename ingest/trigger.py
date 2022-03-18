@@ -1,11 +1,11 @@
-from typing import List, Optional, Protocol, Type
+from typing import Generic, List, Optional, Protocol, Type
 from pydantic import BaseModel
 
 from ingest.data_types import S3Object
 from ingest.provider import CloudProvider
 
 
-class Trigger(Protocol):
+class Trigger(BaseModel):
     output_type: Type
 
     def get_construct(self, provider: CloudProvider):
