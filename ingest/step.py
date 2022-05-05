@@ -1,4 +1,3 @@
-from dataclasses import dataclass, field
 from datetime import timedelta
 import json
 from inspect import signature
@@ -14,7 +13,7 @@ from typing import (
     get_args,
 )
 
-from pydantic import UUID4, BaseModel
+from pydantic import UUID4, BaseModel, Field
 
 from ingest.permissions import Permission
 from ingest.providers import CloudProvider, bootstrap
@@ -35,15 +34,14 @@ def get_base(cls):
         return cls
 
 
-@dataclass
-class Step(Generic[I_co, O]):
+class Step(BaseModel, Generic[I_co, O]):
     func: Callable[[I_co], O]
-    aws_lambda_properties: Mapping[str, Any] = field(default_factory=dict)
-    env_vars: Sequence[str] = field(default_factory=list)
-    permissions: Mapping[CloudProvider, Sequence[Permission]] = field(
+    aws_lambda_properties: Mapping[str, Any] = Field(default_factory=dict)
+    env_vars: Sequence[str] = Field(default_factory=list)
+    permissions: Mapping[CloudProvider, Sequence[Permission]] = Field(
         default_factory=dict
     )
-    requirements: Sequence[str] = field(default_factory=list)
+    requirements: Sequence[str] = Field(default_factory=list)
 
     def get_output(self) -> O:
         return signature(self.func).return_annotation
@@ -67,7 +65,6 @@ class Step(Generic[I_co, O]):
         return self.func.__name__
 
 
-@dataclass
 class BasicStep(Step[I, O]):
     def __call__(self, input: I) -> O:
         """
@@ -77,7 +74,6 @@ class BasicStep(Step[I, O]):
         return prepped_handler(input)
 
 
-@dataclass
 class Collector(Step[List[I], O]):
     """
     A step for processing batches of items.
