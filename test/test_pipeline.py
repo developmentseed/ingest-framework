@@ -1,7 +1,7 @@
 import pytest
 from ingest.pipeline import Pipeline
 from ingest.trigger import S3ObjectCreated, S3Filter
-from test.data_models import S3ToStac, StacToS3
+from test.data_models import s3_to_stac, stac_to_s3
 
 
 class TestPipeline:
@@ -13,10 +13,10 @@ class TestPipeline:
                 bucket_name="fakebucket",
                 object_filter=S3Filter(prefix="inbox", suffix=".json"),
             ),
-            steps=[S3ToStac, StacToS3],
+            steps=[s3_to_stac, stac_to_s3],
         )
         assert pipe.name == "TestCreate"
-        assert pipe.steps == [S3ToStac, StacToS3]
+        assert pipe.steps == [s3_to_stac, stac_to_s3]
 
     def test_step_output_validation(self):
         """Each step in a Pipeline must pass the expected data type
@@ -28,7 +28,7 @@ class TestPipeline:
                     bucket_name="fakebucket",
                     object_filter=S3Filter(prefix="inbox", suffix=".json"),
                 ),
-                steps=[S3ToStac, S3ToStac],
+                steps=[s3_to_stac, s3_to_stac],
             )
 
     def test_trigger_output_validation(self):
@@ -41,5 +41,5 @@ class TestPipeline:
                     bucket_name="fakebucket",
                     object_filter=S3Filter(prefix="inbox", suffix=".json"),
                 ),
-                steps=[StacToS3, S3ToStac],
+                steps=[stac_to_s3, s3_to_stac],
             )
