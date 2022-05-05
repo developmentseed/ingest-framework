@@ -1,6 +1,7 @@
 {
     "python.formatting.provider": "black",
     "python.linting.mypyEnabled": true,
+    "python.analysis.typeCheckingMode": "off",
     "python.linting.enabled": true,
     "python.linting.lintOnSave": true,
     "editor.formatOnSave": true

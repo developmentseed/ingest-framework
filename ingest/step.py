@@ -1,15 +1,26 @@
+from dataclasses import dataclass, field
 from datetime import timedelta
 import json
-from pathlib import Path
-from typing import Dict, Optional, Protocol, get_args, Sequence, TypeVar
-
-# from uuid import uuid4
+from inspect import signature
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    Mapping,
+    Sequence,
+    TypeVar,
+    List,
+    get_args,
+)
 
 from pydantic import UUID4, BaseModel
 
-from ingest.cache import BatchCache
 from ingest.permissions import Permission
-from ingest.secrets import SecretsMap
+from ingest.providers import CloudProvider, bootstrap
+from ingest.services.queue import IQueue
+
+from kink import inject
 
 I = TypeVar("I", bound=BaseModel)
 O = TypeVar("O", covariant=True, bound=BaseModel)
@@ -24,48 +35,50 @@ def get_base(cls):
         return cls
 
 
-class Step(Protocol[I_co, O]):
-    permissions: Sequence[Permission] = []
-    secrets: Optional[SecretsMap] = {}
-    requirements_path: Optional[Path] = None
+@dataclass
+class Step(Generic[I_co, O]):
+    func: Callable[[I_co], O]
+    aws_lambda_properties: Mapping[str, Any] = field(default_factory=dict)
+    env_vars: Sequence[str] = field(default_factory=list)
+    permissions: Mapping[CloudProvider, Sequence[Permission]] = field(
+        default_factory=dict
+    )
+    requirements: Sequence[str] = field(default_factory=list)
 
-    @classmethod
-    def get_output(cls) -> O:
-        return get_args(get_base(cls))[1]
+    def get_output(self) -> O:
+        return signature(self.func).return_annotation
 
-    @classmethod
-    def get_input(cls) -> I_co:
-        return get_args(get_base(cls))[0]
+    def get_input(self) -> I_co:
+        return signature(self.func).parameters["input"].annotation
 
-    @classmethod
-    def handler(cls, event, context) -> O:
-        raise NotImplementedError
-
-
-class Transformer(Step[I, O]):
-    """
-    A basic step. Transforms one data type into another.
-    """
-
-    @classmethod
-    def execute(cls, input: I, **kwargs) -> O:
-        raise NotImplementedError()
-
-    @classmethod
-    def handler(cls, event, context, secrets: Optional[SecretsMap] = None) -> O:
-        print(f"Event: {event}")
-        print(f"Context: {context}")
-        input_data = cls.get_input().parse_obj(event)
-        print(f"Input: {input_data}")
-
-        secret_dict = (
-            {k: secret.secret_value for k, secret in secrets.items()} if secrets else {}
+    def lambda_handler(self, event, context):
+        """
+        Handler for AWS Lambdas.
+        """
+        # When running in lambda, we don't instantiate a Pipeline class (where
+        # bootstrapping occurs), so we must bootstrap our DI here
+        bootstrap(CloudProvider.aws)
+        return self(self.get_input().parse_obj(event)).dict(
+            by_alias=True, exclude_unset=True
         )
-        result = cls.execute(input=input_data, **secret_dict)
-        return result
+
+    @property
+    def name(self):
+        return self.func.__name__
 
 
-class Collector(Step[I, O]):
+@dataclass
+class BasicStep(Step[I, O]):
+    def __call__(self, input: I) -> O:
+        """
+        Inject dependencies and execute step.
+        """
+        prepped_handler = inject(self.func)
+        return prepped_handler(input)
+
+
+@dataclass
+class Collector(Step[List[I], O]):
     """
     A step for processing batches of items.
 
@@ -77,41 +90,69 @@ class Collector(Step[I, O]):
 
     batch_size: int = 100
     max_batching_window: int = 60
-    cache: BatchCache
 
-    @classmethod
-    def collect_input(self, input: I) -> None:
-        self.cache.queue_data(data=input)
+    def __call__(self, input: List[I]) -> O:
+        """
+        Inject dependencies and execute step.
+        """
+        prepped_handler = inject(self.func)
+        return prepped_handler(input)
 
-    @classmethod
-    def ready(self) -> bool:
+    def __post_init__(self):
+        if not get_args(super().get_input()):
+            raise TypeError(
+                "`input` parameter for collector steps must be iterable with a type hint (list[str], Sequence[str], etc)"
+            )
+
+    def get_input(self) -> I_co:
+        return get_args(super().get_input())[0]
+
+    @inject
+    def collect_input(self, input: I, queue: IQueue) -> None:
+        queue.queue_data(data=input)
+
+    @inject
+    def ready(self, queue: IQueue) -> bool:
         return (
-            self.cache.queue_size >= self.batch_size
-            or self.cache.time_since_first_item()
+            queue.queue_size >= self.batch_size
+            or queue.time_since_first_item
             >= timedelta(seconds=self.max_batching_window)
         )
 
-    @classmethod
-    def fetch_batch(self) -> Sequence[I]:
-        return self.cache.fetch(self.batch_size)
+    @inject
+    def fetch_batch(self, queue: IQueue) -> Sequence[I]:
+        return queue.fetch(self.batch_size)
 
-    @classmethod
-    def execute(cls, input: Sequence[I], **kwargs) -> O:
-        raise NotImplementedError()
-
-    @classmethod
-    def handler(cls, event, context, secrets: Optional[SecretsMap] = None) -> O:
+    def lambda_handler(self, event, context) -> Dict:
+        bootstrap(CloudProvider.aws)
         print(event)
         print(context)
-        input_type = cls.get_input()
-        secret_dict = (
-            {k: secret.secret_value for k, secret in secrets.items()} if secrets else {}
-        )
-        result = cls.execute(
+        input_type: I = self.get_input()
+        return self(
             input=[
                 input_type.parse_obj(json.loads(record.get("body")))
                 for record in event["Records"]
             ],
-            **secret_dict,
-        )
-        return result
+        ).dict(by_alias=True, exclude_unset=True)
+
+
+def step(*args, **kwargs) -> Callable[..., Step]:
+    """
+    Decorator to create a Step object from func.
+    """
+
+    def wrapper(func):
+        return BasicStep(func=func, *args, **kwargs)
+
+    return wrapper
+
+
+def collector(*args, **kwargs) -> Callable[..., Step]:
+    """
+    Decorator to create a Step object from func.
+    """
+
+    def wrapper(func):
+        return Collector(func=func, *args, **kwargs)
+
+    return wrapper

@@ -13,6 +13,8 @@ with open("VERSION") as version_file:
 # (Anything > 2.2.0)
 install_requires = [
     "pydantic==1.9.0",
+    "kink==0.6.3",
+    "python-dotenv==0.20.0",
 ]
 
 extra_reqs = {
@@ -53,7 +55,7 @@ setup(
     keywords="data pipeline",
     author="Edward Keeble",
     author_email="edward@developmentseed.org",
-    url="https://github.com/edkeeble/ingest",
+    url="https://github.com/developmentseed/ingest-framework",
     license="",
     package_data={
         "ingest": ["py.typed"],

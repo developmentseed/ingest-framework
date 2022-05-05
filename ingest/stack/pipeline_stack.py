@@ -27,7 +27,7 @@ class PipelineStack(core.Stack):
         code_dir: Path,
         requirements_path: Path,
         pipeline: Pipeline,
-        steps: Sequence[Type[Step]],
+        steps: Sequence[Step],
         *args,
         **kwargs,
     ):
@@ -38,7 +38,7 @@ class PipelineStack(core.Stack):
         layer = self.create_dependencies_layer()
 
         collectors = [
-            (i, step) for i, step in enumerate(steps) if issubclass(step, Collector)
+            (i, step) for i, step in enumerate(steps) if isinstance(step, Collector)
         ]
 
         starting_idx = 0
@@ -50,8 +50,8 @@ class PipelineStack(core.Stack):
             if collector:
                 target_queue = sqs.Queue(
                     self,
-                    collector_queue_name(collector),
-                    queue_name=collector_queue_name(collector),
+                    collector_queue_name(pipeline, collector),
+                    queue_name=collector_queue_name(pipeline, collector),
                     visibility_timeout=core.Duration.minutes(
                         11
                     ),  # TODO: make this configurable

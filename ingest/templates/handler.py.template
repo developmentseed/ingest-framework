@@ -1,29 +1,5 @@
-import json
-from copy import copy
-from {handler_module} import {handler_class} as chandler
+from {handler_module} import {handler_class} as step
 
-from ingest.secrets import Secret, SecretsMap
-
-def get_secret_value(secrets_client, secret_id):
-    secrets_client.get_secret_value(SecretId=secret_id)["SecretString"]
 
 def handler(event, context):
-
-    if chandler.secrets:
-        import boto3
-        client = boto3.client("secretsmanager")
-        secrets_map = copy(chandler.secrets)
-        for k, v in secrets_map.items():
-            v.secret_value = get_secret_value(client, v.secret_id)
-    else:
-        secrets_map = {}
-
-    if isinstance(event, str):
-        event_data = json.loads(event)
-    else:
-        event_data = event
-    if isinstance(context, str):
-        context_data = json.loads(context)
-    else:
-        context_data = context
-    return chandler.handler(event_data, context_data, secrets_map).dict(by_alias=True, exclude_unset=True)
+    return step.lambda_handler(event, context)

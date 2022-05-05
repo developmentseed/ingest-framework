@@ -1,15 +1,14 @@
 from pathlib import Path
-from typing import List
+from typing import Sequence
 from uuid import uuid4
 from pydantic import UUID4
-
 from ingest.pipeline import Pipeline
 
 
 class IngestApp:
     uuid: UUID4
     name: str
-    pipelines: List[Pipeline]
+    pipelines: Sequence[Pipeline]
     code_dir: Path
     requirements_path: Path
 
@@ -18,7 +17,7 @@ class IngestApp:
         name: str,
         code_dir: Path,
         requirements_path: Path,
-        pipelines: List[Pipeline] = [],
+        pipelines: Sequence[Pipeline] = [],
     ):
         self.id = uuid4()
         self.name = name

@@ -47,7 +47,10 @@ A non-comprehensive list of things which are missing right now.
 - [ ] Defining networking requirements (we may be able to infer these from required access to DB in private subnet)
 - [x] Support a requirements file per step rather than per app
 - [x] Additional trigger types (SQS, HTTP request?). Define a plugin interface for triggers, so that other devs can provide their own.
-- [ ] Support injecting named secrets into a step
+- [x] Dependency injection strategy
+- [x] When running locally, install all requirements for each step up front
+- [ ] When running locally, install requirements for each step into a subfolder and load them before running the step (tricky)
+- [x] Refactor CDK constructs for DI
 - [ ] Allow triggering another pipeline from within a step (support parallelization)
 - [ ] Monitoring:
   - [ ] tracing each pipeline run through each step in the pipeline

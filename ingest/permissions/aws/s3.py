@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import Sequence
-from pydantic import BaseModel
+from ingest.permissions import Permission
 
 
 class S3AccessActions(str, Enum):
@@ -11,13 +11,16 @@ class S3AccessActions(str, Enum):
     write = "read"
 
 
-class Permission(BaseModel):
-    pass
-
-
 class S3Access(Permission):
     bucket_name: str
     actions: Sequence[S3AccessActions] = []
+
+    def aws_grant(self, scope, func):
+        from aws_cdk import aws_s3 as s3
+
+        bucket = s3.Bucket.from_bucket_name(scope, "bucket", self.bucket_name)
+        for action in self.actions:
+            getattr(bucket, f"grant_{action}")(func)
 
 
 class S3ReadAccess(S3Access):

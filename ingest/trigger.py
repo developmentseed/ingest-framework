@@ -1,8 +1,8 @@
-from typing import Generic, List, Optional, Protocol, Type
+from typing import List, Optional, Type
 from pydantic import BaseModel
 
 from ingest.data_types import S3Object
-from ingest.provider import CloudProvider
+from ingest.providers import CloudProvider
 
 
 class Trigger(BaseModel):
@@ -21,11 +21,6 @@ class S3Trigger(Trigger, BaseModel):
     bucket_name: str
     events: List[str]
     object_filter: S3Filter
-
-    # def __init__(self, bucket_name: str, events: List[str], object_filter: S3Filter):
-    #     self.bucket_name = bucket_name
-    #     self.events = events
-    #     self.object_filter = object_filter
 
     def get_construct(self, provider: CloudProvider):
         if provider == CloudProvider.aws:

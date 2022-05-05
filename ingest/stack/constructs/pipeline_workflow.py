@@ -8,8 +8,7 @@ from aws_cdk import (
     aws_sqs as sqs,
     aws_stepfunctions_tasks as tasks,
 )
-from ingest.permissions import S3Access
-from ingest.provider import CloudProvider
+from ingest.providers import CloudProvider
 from ingest.stack.constructs.step_lambda import StepLambda
 from ingest.stack.constructs.pipeline_state_machine import PipelineStateMachine
 from ingest.stack.constructs.sqs_post_lambda import SQSQueuePostLambda
@@ -33,9 +32,9 @@ class PipelineWorkflow(core.Construct):
         pipeline: Pipeline,
         code_dir: Path,
         requirements_path: Path,
-        steps: Sequence[Type[Step]],
+        steps: Sequence[Step],
         layer: lambda_.LayerVersion,
-        collector: Optional[Type[Collector]] = None,
+        collector: Optional[Collector] = None,
         target_queue: Optional[sqs.Queue] = None,
         trigger_queue: Optional[sqs.Queue] = None,
         **kwargs,
@@ -49,7 +48,7 @@ class PipelineWorkflow(core.Construct):
             layer=layer,
         )
         if collector and target_queue:
-            queue_name = collector_queue_name(collector)
+            queue_name = collector_queue_name(pipeline, collector)
             # append lambda function to post input to SQS queue
             collector_send_lambda = SQSQueuePostLambda(
                 self, queue_name=queue_name, sqs_queue=target_queue
@@ -82,13 +81,13 @@ class PipelineWorkflow(core.Construct):
                 trigger=pipeline.trigger,
             )
         elif (
-            issubclass(steps[0], Collector) and trigger_queue
+            isinstance(steps[0], Collector) and trigger_queue
         ):  # this should always be true, if workflow_num > 0
             # set trigger to SQS with collector props
             step = steps[0]
             trigger = SQSTrigger(
                 output_type=step.get_output(),
-                queue_name=collector_queue_name(step),
+                queue_name=collector_queue_name(pipeline, step),
                 batch_size=step.batch_size,
                 max_batching_window=step.max_batching_window,
             )
@@ -103,7 +102,7 @@ class PipelineWorkflow(core.Construct):
 
     def create_lambda_tasks(
         self,
-        steps: Sequence[Type[Step]],
+        steps: Sequence[Step],
         code_dir: Path,
         requirements_path: Path,
         layer: lambda_.LayerVersion,

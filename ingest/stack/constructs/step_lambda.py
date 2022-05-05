@@ -1,18 +1,37 @@
 import os
+
+from inspect import signature
 from pathlib import Path
-from typing import Type
+from typing import Any, Dict, Mapping, get_args
 from aws_cdk import core, aws_lambda as lambda_, aws_s3 as s3
+
+from ingest.providers import CloudProvider
+
+
+def format_lambda_properties(props: Mapping[str, Any]) -> Dict[str, Any]:
+    ignored_lambda_properties = ("handler", "runtime", "layers", "code")
+    formatted_props = {
+        k: v for k, v in props.items() if k not in ignored_lambda_properties
+    }
+    func_sig = signature(lambda_.Function.__init__)
+    for k, v in formatted_props.items():
+        if k in func_sig.parameters:
+            param_type = func_sig.parameters[k].annotation
+            if core.Duration is param_type or core.Duration in get_args(param_type):
+                formatted_props[k] = core.Duration.seconds(v)
+        else:
+            raise ValueError(f"{k} is an invalid property to pass to AWS Lambda")
+    return formatted_props
 
 
 class StepLambda(lambda_.Function):
-    from ingest.permissions import Permission
     from ingest.step import Step
 
     def __init__(
         self,
         scope: core.Construct,
         id: str,
-        step: Type[Step],
+        step: Step,
         code_dir: Path,
         default_requirements_path: Path,
         base_layer: lambda_.ILayerVersion,
@@ -20,18 +39,27 @@ class StepLambda(lambda_.Function):
     ):
         d = code_dir.relative_to(Path(os.path.curdir).resolve())
 
-        if step.requirements_path:
-            reqs = step.requirements_path.relative_to(code_dir)
-        else:
-            reqs = default_requirements_path.relative_to(code_dir)
+        step_reqs = " ".join(step.requirements)
+        requirements_path = default_requirements_path.relative_to(code_dir)
 
         handler_file = self.get_handler_template_contents().format(
-            handler_module=step.__module__, handler_class=step.__name__
+            handler_module=step.func.__module__, handler_class=step.name
         )
-        self.lambda_name = step.__name__
+
+        self.lambda_name = step.name
         lambda_prefix = id[: 79 - len(self.lambda_name)]
 
         handler_name = "handler"
+
+        step_reqs_cmd = (
+            f"&& pip install {step_reqs} -t /asset-output" if step_reqs else ""
+        )
+
+        lambda_properties: Dict[str, Any] = {
+            "timeout": core.Duration.minutes(1),
+            "environment": {env_var: os.environ[env_var] for env_var in step.env_vars},
+        }
+        lambda_properties.update(format_lambda_properties(step.aws_lambda_properties))
 
         super().__init__(
             scope,
@@ -44,18 +72,18 @@ class StepLambda(lambda_.Function):
                     command=[
                         "bash",
                         "-c",
-                        f'echo "{handler_file}" > /asset-output/{handler_name}.py && pip install -r {reqs} -t /asset-output && cp -au . /asset-output/{d}',
+                        f'echo "{handler_file}" > /asset-output/{handler_name}.py && pip install -r {requirements_path} -t /asset-output {step_reqs_cmd} && cp -au . /asset-output/{d}',
                     ],
                 ),
             ),
             handler=f"{handler_name}.handler",
-            timeout=core.Duration.minutes(1),
             runtime=lambda_.Runtime.PYTHON_3_9,
             layers=[base_layer],
+            **lambda_properties,
         )
 
-        for permission in step.permissions:
-            self.grant_permission(permission)
+        for permission in step.permissions.get(CloudProvider.aws, []):
+            permission.aws_grant(scope, self)
 
     def get_handler_template_contents(self):
         template_file_path = os.path.join(
@@ -67,11 +95,3 @@ class StepLambda(lambda_.Function):
         )
         with open(template_file_path, "r") as f:
             return f.read()
-
-    def grant_permission(self, permission: Permission):
-        from ingest.permissions import S3Access
-
-        if isinstance(permission, S3Access):
-            bucket = s3.Bucket.from_bucket_name(self, "bucket", permission.bucket_name)
-            for action in permission.actions:
-                getattr(bucket, f"grant_{action}")(self)
