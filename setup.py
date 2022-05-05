@@ -27,16 +27,7 @@ extra_reqs = {
         "boto3-stubs[stepfunctions]",
     ],
     "cdk": [
-        "aws-cdk.core>=1.148.0",
-        "aws-cdk.aws-ec2>=1.148.0",
-        "aws-cdk.aws-s3>=1.148.0",
-        "aws-cdk.aws-lambda-event-sources>=1.148.0",
-        "aws-cdk.aws-iam>=1.148.0",
-        "aws-cdk.aws-lambda>=1.148.0",
-        "aws-cdk.aws-rds>=1.148.0",
-        "aws-cdk.aws-sqs>=1.148.0",
-        "aws-cdk.aws-stepfunctions>=1.148.0",
-        "aws-cdk.aws-stepfunctions-tasks>=1.148.0",
+        "aws-cdk-lib>=2.0.0",
     ],
 }
 
