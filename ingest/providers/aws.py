@@ -1,7 +1,6 @@
 from datetime import timedelta
 import json
 
-import boto3
 from kink import inject
 
 from ..services.queue import IQueue
@@ -15,6 +14,8 @@ T = TypeVar("T")
 @inject(alias=IQueue)
 class SqsQueue(IQueue[T]):
     def __init__(self, queue_name: str):
+        import boto3
+
         sqs = boto3.resource("sqs")
         self.queue = sqs.Queue("TODO: Some URL")
 
@@ -39,6 +40,8 @@ class SqsQueue(IQueue[T]):
 @inject(alias=ISecrets)
 class SecretsManager(ISecrets):
     def __init__(self):
+        import boto3
+
         self.secrets_client = boto3.client("secretsmanager")
 
     def get_secret_value(self, secret_id: str):
