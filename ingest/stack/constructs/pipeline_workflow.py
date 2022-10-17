@@ -1,13 +1,13 @@
 import logging
 
 from pathlib import Path
-from typing import List, Optional, Sequence, Type
+from typing import List, Optional, Sequence
 from aws_cdk import (
-    core,
     aws_lambda as lambda_,
     aws_sqs as sqs,
     aws_stepfunctions_tasks as tasks,
 )
+from constructs import Construct
 from ingest.providers import CloudProvider
 from ingest.stack.constructs.step_lambda import StepLambda
 from ingest.stack.constructs.pipeline_state_machine import PipelineStateMachine
@@ -20,13 +20,13 @@ from ingest.trigger import SQSTrigger
 logger = logging.getLogger(__name__)
 
 
-class PipelineWorkflow(core.Construct):
+class PipelineWorkflow(Construct):
     from ingest.pipeline import Pipeline
     from ingest.step import Step, Collector
 
     def __init__(
         self,
-        scope: core.Construct,
+        scope: Construct,
         id: str,
         workflow_num: int,
         pipeline: Pipeline,

@@ -3,12 +3,11 @@ import os
 from pathlib import Path
 import subprocess
 import sys
-from typing import Sequence, Type
-from aws_cdk import (
-    core,
-    aws_lambda as lambda_,
-    aws_sqs as sqs,
-)
+from typing import Sequence
+
+from aws_cdk import Stack, Duration
+from aws_cdk import aws_lambda as lambda_, aws_sqs as sqs
+from constructs import Construct
 
 from ingest.stack.constructs.pipeline_workflow import PipelineWorkflow
 from ingest.stack.naming import collector_queue_name
@@ -16,13 +15,13 @@ from ingest.stack.naming import collector_queue_name
 logger = logging.getLogger(__name__)
 
 
-class PipelineStack(core.Stack):
+class PipelineStack(Stack):
     from ingest.pipeline import Pipeline
     from ingest.step import Step
 
     def __init__(
         self,
-        scope: core.Construct,
+        scope: Construct,
         id: str,
         code_dir: Path,
         requirements_path: Path,
@@ -52,10 +51,10 @@ class PipelineStack(core.Stack):
                     self,
                     collector_queue_name(pipeline, collector),
                     queue_name=collector_queue_name(pipeline, collector),
-                    visibility_timeout=core.Duration.minutes(
+                    visibility_timeout=Duration.minutes(
                         11
                     ),  # TODO: make this configurable
-                    receive_message_wait_time=core.Duration.seconds(
+                    receive_message_wait_time=Duration.seconds(
                         10
                     ),  # TODO: make this configurable
                 )

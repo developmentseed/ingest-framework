@@ -2,16 +2,17 @@ import logging
 import os
 
 from aws_cdk import (
-    core,
+    Duration,
     aws_lambda as lambda_,
     aws_sqs as sqs,
 )
+from constructs import Construct
 
 logger = logging.getLogger(__name__)
 
 
 class SQSQueuePostLambda(lambda_.Function):
-    def __init__(self, scope: core.Construct, queue_name: str, sqs_queue: sqs.Queue):
+    def __init__(self, scope: Construct, queue_name: str, sqs_queue: sqs.Queue):
         super().__init__(
             scope,
             f"send_to_{queue_name}"[:79],
@@ -21,7 +22,7 @@ class SQSQueuePostLambda(lambda_.Function):
                 ),
             ),
             environment={"QUEUE_URL": sqs_queue.queue_url},
-            timeout=core.Duration.seconds(10),
+            timeout=Duration.seconds(10),
             runtime=lambda_.Runtime.PYTHON_3_9,
             handler="handler.handler",
         )

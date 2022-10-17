@@ -1,15 +1,16 @@
 from typing import Sequence
+
 from aws_cdk import (
-    core,
     aws_stepfunctions as sf,
     aws_stepfunctions_tasks as tasks,
 )
 
+from constructs import Construct
 
 class PipelineStateMachine(sf.StateMachine):
     def __init__(
         self,
-        scope: core.Construct,
+        scope: Construct,
         id: str,
         state_machine_name: str,
         lambdas: Sequence[tasks.LambdaInvoke],

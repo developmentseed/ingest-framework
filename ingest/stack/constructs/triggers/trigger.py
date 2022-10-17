@@ -1,12 +1,13 @@
-from aws_cdk import core, aws_stepfunctions as sf
+from aws_cdk import aws_stepfunctions as sf
+from constructs import Construct
 
 
-class TriggerConstruct(core.Construct):
+class TriggerConstruct(Construct):
     from ingest.trigger import Trigger
 
     def __init__(
         self,
-        scope: core.Construct,
+        scope: Construct,
         id: str,
         *,
         pipeline_name: str,

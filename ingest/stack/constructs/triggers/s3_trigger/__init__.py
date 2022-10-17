@@ -1,11 +1,12 @@
 import os
 from aws_cdk import (
-    core,
+    Duration,
     aws_lambda as lambda_,
     aws_s3 as s3,
     aws_s3_notifications as s3n,
     aws_stepfunctions as sf,
 )
+from constructs import Construct
 
 from ingest.stack.constructs.triggers.trigger import TriggerConstruct
 
@@ -15,7 +16,7 @@ class S3TriggerConstruct(TriggerConstruct):
 
     def __init__(
         self,
-        scope: core.Construct,
+        scope: Construct,
         id: str,
         pipeline_name: str,
         state_machine: sf.StateMachine,
@@ -37,7 +38,7 @@ class S3TriggerConstruct(TriggerConstruct):
                 os.path.join(os.path.dirname(__file__), "handler"),
             ),
             environment={"STATE_MACHINE_ARN": state_machine.state_machine_arn},
-            timeout=core.Duration.seconds(30),
+            timeout=Duration.seconds(30),
             runtime=lambda_.Runtime.PYTHON_3_9,
             handler="handler.handler",
         )

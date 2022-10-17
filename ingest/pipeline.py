@@ -74,7 +74,7 @@ class Pipeline:
 
         return PipelineStack(
             app,
-            id=f"PipelineStack-{self.uuid}",
+            id=f"{self.resource_name}Stack",
             pipeline=self,
             steps=self.steps,
             code_dir=code_dir,
@@ -83,4 +83,4 @@ class Pipeline:
 
     @property
     def resource_name(self):
-        return self.name.replace(" ", "_")
+        return self.name.replace(" ", "")

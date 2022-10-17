@@ -3,7 +3,8 @@ import os
 from inspect import signature
 from pathlib import Path
 from typing import Any, Dict, Mapping, get_args
-from aws_cdk import core, aws_lambda as lambda_, aws_s3 as s3
+from aws_cdk import BundlingOptions, Duration, aws_lambda as lambda_, aws_s3 as s3
+from constructs import Construct
 
 from ingest.providers import CloudProvider
 
@@ -17,8 +18,8 @@ def format_lambda_properties(props: Mapping[str, Any]) -> Dict[str, Any]:
     for k, v in formatted_props.items():
         if k in func_sig.parameters:
             param_type = func_sig.parameters[k].annotation
-            if core.Duration is param_type or core.Duration in get_args(param_type):
-                formatted_props[k] = core.Duration.seconds(v)
+            if Duration is param_type or Duration in get_args(param_type):
+                formatted_props[k] = Duration.seconds(v)
         else:
             raise ValueError(f"{k} is an invalid property to pass to AWS Lambda")
     return formatted_props
@@ -29,7 +30,7 @@ class StepLambda(lambda_.Function):
 
     def __init__(
         self,
-        scope: core.Construct,
+        scope: Construct,
         id: str,
         step: Step,
         code_dir: Path,
@@ -56,7 +57,7 @@ class StepLambda(lambda_.Function):
         )
 
         lambda_properties: Dict[str, Any] = {
-            "timeout": core.Duration.minutes(1),
+            "timeout": Duration.minutes(1),
             "environment": {env_var: os.environ[env_var] for env_var in step.env_vars},
         }
         lambda_properties.update(format_lambda_properties(step.aws_lambda_properties))
@@ -67,7 +68,7 @@ class StepLambda(lambda_.Function):
             code=lambda_.Code.from_asset(
                 str(d.absolute()),
                 exclude=["__pycache__"],
-                bundling=core.BundlingOptions(
+                bundling=BundlingOptions(
                     image=lambda_.Runtime.PYTHON_3_9.bundling_image,
                     command=[
                         "bash",
